@@ -239,7 +239,21 @@ class TestContent(unittest.TestCase):
 
     def test_exact_repeat(self):
         self.read("a.txt", self.a)
-        self.assertEqual(self.read("a.txt", self.a), "[reuse] identical to a.txt")
+        self.assertEqual(self.read("copy-of-a.txt", self.a), "[reuse] identical to a.txt")
+
+    def test_repeated_request_returns_full_output(self):
+        # An agent asking again wants the text; a pointer back at itself loops (seen live).
+        self.read("a.txt", self.a)
+        self.read("b.txt", self.b)
+        self.assertEqual(self.read("b.txt", self.b), numbered(self.b))
+        self.assertEqual(self.read("a.txt", self.a), numbered(self.a))
+
+    def test_folds_only_reference_full_outputs(self):
+        folder = os.path.join(DATASETS, "hosts", "env", "scenarios", "FLT-1000", "inventory")
+        third = open(os.path.join(folder, sorted(os.listdir(folder))[2])).read()
+        self.read("a.txt", self.a)
+        self.assertTrue(self.read("b.txt", self.b).startswith("[reuse] same as a.txt"))
+        self.assertTrue(self.read("c.txt", third).startswith("[reuse] same as a.txt"))
 
     def test_near_duplicate_folded_keeps_numbers(self):
         self.read("a.txt", self.a)

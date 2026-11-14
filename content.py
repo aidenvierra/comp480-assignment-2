@@ -14,6 +14,10 @@ diff runs on the raw text, so every changed number, id and value is shown.
 A reply that quotes an earlier message (`> ` lines) gets a second, finer fold: a quoted
 block whose text appears verbatim in an earlier output becomes one reference line.
 
+Two rules keep references safe to follow: they only ever point at an output the agent was
+shown in full (never at another fold), and a request the agent repeats gets its full output,
+since asking again means the earlier form was not enough.
+
 When neither fold is clearly smaller than the original, the original is returned unchanged.
 """
 
@@ -39,8 +43,9 @@ class ContentCache:
     def __init__(self, threshold=0.8, min_chars=400, max_ratio=0.5):
         self.threshold, self.min_chars, self.max_ratio = threshold, min_chars, max_ratio
         self.lsh = minhash.LSHIndex()
-        self.seen = []        # Seen entries, indexed by their LSH key
-        self.exact = {}       # sha1 of an output -> ref of its first occurrence
+        self.seen = []        # outputs shown in full (the only fold targets), by LSH key
+        self.exact = {}       # sha1 of an output shown in full -> its ref
+        self.requested = set()
         self.hits = self.chars_in = self.chars_out = 0
         self.seconds = 0.0
 
@@ -58,30 +63,35 @@ class ContentCache:
         if len(output) < self.min_chars or output.startswith(("ERROR:", "BLOCKED:")):
             return output
         ref = _ref(tool, args)
+        if ref in self.requested:  # asked again on purpose: a pointer back would loop
+            return output
+        self.requested.add(ref)
         digest = hashlib.sha1(output.encode()).hexdigest()
         if digest in self.exact:
             return "[reuse] identical to %s" % self.exact[digest]
-        self.exact[digest] = ref
 
         lines = [_NUMBERED.sub("", line) for line in output.splitlines()]
         sig = minhash.signature("\n".join(lines), mask_numbers=True)
         scored = [(minhash.estimate(sig, self.seen[k].signature), k) for k in self.lsh.query(sig)]
-        self.lsh.add(len(self.seen), sig)
-        self.seen.append(Seen(ref, lines, sig, _plain(lines)))
-
         similarity, key = max(scored, default=(0.0, None))
         if similarity >= self.threshold:
             folded = _fold(self.seen[key], lines)
             if len(folded) <= self.max_ratio * len(output):
                 return folded
-        return _QUOTED_RUN.sub(lambda match: self._fold_quote(match.group(0)), output)
+
+        result = _QUOTED_RUN.sub(lambda match: self._fold_quote(match.group(0)), output)
+        if result == output:  # only text the agent saw in full may be referred to later
+            self.exact[digest] = ref
+            self.lsh.add(len(self.seen), sig)
+            self.seen.append(Seen(ref, lines, sig, _plain(lines)))
+        return result
 
     def _fold_quote(self, block):
         """One reference line for a quoted block that an earlier output contains verbatim."""
         text = _plain(block.splitlines())
         if len(text) < MIN_QUOTE_CHARS:
             return block
-        source = next((s for s in self.seen[:-1] if text in s.plain), None)
+        source = next((s for s in self.seen if text in s.plain), None)
         if source is None:
             return block
         number = _NUMBERED.match(block)
