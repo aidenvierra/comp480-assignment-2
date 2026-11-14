@@ -162,6 +162,17 @@ class TestTaskPolicy(unittest.TestCase):
         self.assertIsNone(self.tickets.lookup(task))
         self.assertIn(self.tickets.last_info["reason"], ("critical_word", "below_threshold"))
 
+    def test_reworded_cue_flip_rejected(self):
+        # The cue phrases are "plan change" and "duplicate batch"; neither appears verbatim.
+        body = ("Every time I upload a file I get 'E-3307: storage quota exceeded'.\n\n%s\n\n"
+                "I've already tried waiting a day, which changed nothing.")
+        source = {"hid": "H-x", "product": "MeshMail", "error_code": "E-3307", "platform": "macos",
+                  "subject": "E-3307: quota exceeded on macOS", "resolution_id": "R-21",
+                  "body": body % "A duplicate import run doubled every record in the account."}
+        task = dict(source, tid="T-x", body=body % "Yesterday's plan upgrade is not reflected yet.")
+        terms = policy.critical_terms(instructions("tickets"))
+        self.assertNotEqual(policy.decisive_words(source["body"], terms), policy.decisive_words(task["body"], terms))
+
     def test_corpus_scenario_mismatch_rejected(self):
         records = history("hosts")
         record = records[0]
@@ -347,6 +358,34 @@ class TestRunner(unittest.TestCase):
         self.assertEqual(len(tids), 3)
         self.assertEqual(len(set(tids)), 3)
         self.assertGreater(self.run.Ledger(os.path.join(out, "spend.json")).spent, 0)
+
+
+class TestPlots(unittest.TestCase):
+    def test_sweep_rows(self):
+        import plots
+        rows = plots.sweep(["tickets"], [0.5, 1.0])
+        self.assertEqual(len(rows), 4)
+        gated = [r for r in rows if r["mode"] == "gated"]
+        self.assertTrue(all(r["false_reuses"] == 0 for r in gated))
+        self.assertGreaterEqual(next(r for r in gated if r["threshold"] == 1.0)["reused"], 1)
+
+    def test_report_on_fake_results(self):
+        import tempfile
+        import plots
+        import run
+        self.addCleanup(setattr, run.provider, "complete", run.provider.complete)
+        with tempfile.TemporaryDirectory() as tmp:
+            results, figures = os.path.join(tmp, "results"), os.path.join(tmp, "figures")
+            for config in run.CONFIGS:
+                run.main(["--config", config, "--datasets", "tickets,hosts", "--n", "3",
+                          "--fake", "--out", results])
+            sweep_csv = os.path.join(tmp, "sweep.csv")
+            plots.write_csv(plots.sweep(["tickets", "hosts"], [0.5, 1.0]), sweep_csv)
+            plots.report(results, figures, sweep_csv)
+            summary = plots.read_csv(os.path.join(figures, "summary.csv"))
+            self.assertEqual(len(summary), 4 * 3)  # 4 configs x (2 datasets + overall)
+            for name in plots.FIGURES:
+                self.assertTrue(os.path.getsize(os.path.join(figures, name)) > 0, name)
 
 
 if __name__ == "__main__":

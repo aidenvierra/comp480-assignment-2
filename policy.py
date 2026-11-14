@@ -22,6 +22,7 @@ import minhash
 DEFAULT_THRESHOLD = 0.5
 MAX_THRESHOLD = 0.9
 MARGIN = 0.05
+STOPWORDS = {"the", "and", "for", "under"}
 
 # ---------------------------------------------------------------------------
 # normalisation, following the rules published in each INSTRUCTIONS.md
@@ -95,9 +96,14 @@ def _mentions(text, word):
 
 
 def decisive_words(text, terms):
-    """The cue and status words present in a text."""
+    """The words of the cue and status phrases that a text contains.
+
+    Word by word rather than whole phrases, so a reworded cue still shows: a ticket saying
+    "duplicate import" carries "duplicate" from the cue *duplicate batch*.
+    """
     text = norm_text(text)
-    words = terms["cues"] + [w for ws in terms["status"].values() for w in ws]
+    phrases = terms["cues"] + [w for ws in terms["status"].values() for w in ws]
+    words = {w for p in phrases for w in norm_text(p).split() if len(w) > 2 and w not in STOPWORDS}
     return {w for w in words if _mentions(text, w)}
 
 
