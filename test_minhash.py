@@ -340,6 +340,13 @@ class TestRunner(unittest.TestCase):
         every = sorted(t["seq"] for t in self.run.load_tasks("tickets", None))
         self.assertEqual([t["seq"] for t in tasks], every[:5])
 
+    def test_load_tasks_seeded_sample(self):
+        sample = self.run.load_tasks("tickets", 8, seed=480)
+        self.assertEqual(len(sample), 8)
+        self.assertEqual([t["tid"] for t in sample], [t["tid"] for t in self.run.load_tasks("tickets", 8, seed=480)])
+        self.assertEqual([t["seq"] for t in sample], sorted(t["seq"] for t in sample))
+        self.assertNotEqual(sample, self.run.load_tasks("tickets", 8))
+
     def test_build_workdir_corpus_unnormalised_id(self):
         task = dict(self.run.load_tasks("hosts", 1)[0], scenario="flt1000")
         work = self.run.build_workdir("hosts", task, os.path.join(self.tmp.name, "w"))

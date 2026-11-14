@@ -1,6 +1,6 @@
 """Run the Spartacus agent on dataset tasks under one configuration, verify, and log metrics.
 
-    python run.py --config both --datasets tickets,hosts --n 25
+    python run.py --config both --datasets tickets,hosts --n 8
 
 Configurations: baseline (plain agent), task (task-level reuse), content (content-level
 reuse), both. Each task gets a fresh working directory holding only what the agent may see.
@@ -12,6 +12,7 @@ import argparse
 import importlib.util
 import json
 import os
+import random
 import shutil
 import sys
 import tempfile
@@ -46,11 +47,15 @@ def env_dir(dataset):
     return os.path.join(DATASETS, dataset, "env")
 
 
-def load_tasks(dataset, n):
-    """The first n incoming tasks in stream order (all of them when n is None)."""
+def load_tasks(dataset, n, seed=None):
+    """n incoming tasks in stream order: the first n, or with a seed a fixed random sample.
+    All of them when n is None."""
     folder = os.path.join(env_dir(dataset), "incoming")
-    tasks = [read_json(os.path.join(folder, name)) for name in os.listdir(folder)]
-    return sorted(tasks, key=lambda t: t["seq"])[:n]
+    tasks = sorted((read_json(os.path.join(folder, name)) for name in os.listdir(folder)),
+                   key=lambda t: t["seq"])
+    if n is None or seed is None:
+        return tasks[:n]
+    return sorted(random.Random(seed).sample(tasks, n), key=lambda t: t["seq"])
 
 
 def build_workdir(dataset, task, dest):
@@ -251,7 +256,7 @@ def run_dataset(dataset, opts, ledger):
     log = os.path.join(opts.out, opts.config, dataset + ".jsonl")
     os.makedirs(os.path.dirname(log), exist_ok=True)
     done = read_jsonl(log)
-    tasks = load_tasks(dataset, opts.n)
+    tasks = load_tasks(dataset, opts.n, opts.seed)
     task_policy = policy.TaskPolicy(env_dir(dataset), threshold=opts.threshold) if use_task else None
     if task_policy:  # a resumed run rebuilds the store from answers it already verified
         by_tid = {t["tid"]: t for t in tasks}
@@ -282,7 +287,8 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--config", choices=CONFIGS, required=True)
     parser.add_argument("--datasets", default=",".join(DEFAULT_DATASETS))
-    parser.add_argument("--n", type=int, default=25, help="first N tasks per dataset, by seq")
+    parser.add_argument("--n", type=int, default=8, help="tasks per dataset")
+    parser.add_argument("--seed", type=int, default=480, help="random sample of N; -1 for the first N")
     parser.add_argument("--cap", type=float, default=6.0, help="total $ across all runs")
     parser.add_argument("--threshold", type=float, help="task-reuse threshold (default: calibrated)")
     parser.add_argument("--price-in", type=float, default=PRICES[0], help="$ per million input tokens")
@@ -292,6 +298,7 @@ def main(argv=None):
     parser.add_argument("--trace", action="store_true", help="log each tool call's name, args, size")
     parser.add_argument("--fake", action="store_true", help="stub model, no API calls")
     opts = parser.parse_args(argv)
+    opts.seed = None if opts.seed < 0 else opts.seed
 
     if opts.fake:
         provider.complete = fake_model
