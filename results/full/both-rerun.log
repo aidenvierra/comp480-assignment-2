@@ -1,0 +1,16 @@
+[both/revisions] T-1e7db0 PASS in=104863 tools=10 17.2s  spent $7.6009
+[both/logs] T-a96f81 PASS in=123272 tools=11 19.0s  spent $7.6386
+[both/tickets] T-69368e PASS in=51611 tools=10 19.1s  spent $7.6549
+[both/threads] T-ffcd5d PASS in=122501 tools=16 27.8s  spent $7.6929
+[both/code] T-168a7a PASS in=60732 tools=15 28.0s  spent $7.7125
+[both/bugs] T-b7279b PASS in=374543 tools=15 31.3s  spent $7.8259
+[both/tickets] T-25beb8 PASS in=214785 tools=10 14.4s  spent $7.8910
+[both/logs] T-8b1bbb PASS in=53980 tools=10 17.7s  spent $7.9080
+[both/bugs] T-734823 FAIL in=25701 tools=7 11.0s  spent $7.9162
+[both/threads] T-41f767 PASS in=106295 tools=10 17.7s  spent $7.9488
+[both/revisions] T-3c0fab FAIL in=160112 tools=18 32.2s  spent $7.9979
+[both/tickets] T-dd6c39 FAIL in=120722 tools=10 16.2s  spent $8.0351
+[both/bugs] T-a5fff8 PASS in=107995 tools=19 30.7s  spent $8.0700
+[both/code] T-24ca74 PASS in=349208 tools=29 57.0s  spent $8.1764
+[both/revisions] T-bda07e PASS in=220881 tools=19 40.4s  spent $8.2453
+total spent: $8.2453

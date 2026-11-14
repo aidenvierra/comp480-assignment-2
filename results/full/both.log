@@ -1,0 +1,65 @@
+[both/hosts] T-5376d5 FAIL in=0 tools=0 0.1s  spent $5.6193
+[both/hosts] T-c551ee PASS (reused) in=0 tools=0 0.0s  spent $5.6193
+[both/configs] T-d5fe01 PASS in=15129 tools=7 12.9s  spent $5.6243
+[both/logs] T-d73a4e PASS in=40502 tools=9 14.3s  spent $5.6375
+[both/tickets] T-879895 PASS in=43579 tools=10 15.6s  spent $5.6513
+[both/revisions] T-b50c5b PASS in=102583 tools=10 16.1s  spent $5.6829
+[both/threads] T-7e289d PASS in=28511 tools=9 16.5s  spent $5.6920
+[both/hosts] T-aac3f1 PASS in=99974 tools=10 19.0s  spent $5.7233
+[both/tickets] T-e65487 PASS in=36746 tools=10 18.1s  spent $5.7361
+[both/tickets] T-fc2c7e PASS (reused) in=0 tools=0 0.0s  spent $5.7361
+[both/bugs] T-b7279b PASS in=203651 tools=20 35.4s  spent $5.7989
+[both/bugs] T-eaa2bc PASS (reused) in=0 tools=0 0.0s  spent $5.7989
+[both/bugs] T-de9c18 PASS (reused) in=0 tools=0 0.0s  spent $5.7989
+[both/bugs] T-8efb84 PASS (reused) in=0 tools=0 0.0s  spent $5.7989
+[both/logs] T-a96f81 PASS in=46731 tools=12 22.7s  spent $5.8138
+[both/code] T-168a7a PASS in=306096 tools=23 37.8s  spent $5.9079
+[both/configs] T-60d48f PASS in=42124 tools=13 26.8s  spent $5.9221
+[both/hosts] T-36df4f PASS in=40420 tools=12 21.3s  spent $5.9353
+[both/hosts] T-c5639a PASS (reused) in=0 tools=0 0.0s  spent $5.9353
+[both/revisions] T-1e7db0 PASS in=165809 tools=18 31.2s  spent $5.9863
+[both/threads] T-ffcd5d PASS in=188010 tools=19 32.8s  spent $6.0441
+[both/threads] T-2e73ea PASS (reused) in=0 tools=0 0.0s  spent $6.0441
+[both/logs] T-3fc652 PASS in=51761 tools=9 13.7s  spent $6.0604
+[both/hosts] T-ccb59d PASS in=70635 tools=8 10.6s  spent $6.0822
+[both/code] T-735ebe PASS in=19752 tools=7 13.7s  spent $6.0886
+[both/bugs] T-734823 PASS in=57462 tools=13 20.2s  spent $6.1080
+[both/code] T-20b8da PASS in=14869 tools=6 6.9s  spent $6.1130
+[both/tickets] T-69368e PASS in=63617 tools=12 26.1s  spent $6.1329
+[both/hosts] T-cfb8d8 PASS in=22301 tools=8 9.9s  spent $6.1402
+[both/revisions] T-1d2e91 PASS in=109183 tools=11 19.7s  spent $6.1744
+[both/logs] T-17e75b PASS in=40441 tools=9 16.9s  spent $6.1876
+[both/threads] T-2f6d37 PASS in=112030 tools=10 19.1s  spent $6.2224
+[both/tickets] T-c43cb9 PASS in=24439 tools=7 10.9s  spent $6.2302
+[both/configs] T-d4fd9f PASS in=212972 tools=16 36.2s  spent $6.3000
+[both/configs] T-d5fd9a PASS (reused) in=0 tools=0 0.0s  spent $6.3000
+[both/configs] T-80df25 PASS (reused) in=0 tools=0 0.0s  spent $6.3000
+[both/configs] T-88915f PASS (reused) in=0 tools=0 0.0s  spent $6.3000
+[both/hosts] T-ab4ae0 PASS in=23585 tools=9 17.0s  spent $6.3078
+[both/code] T-24ca74 PASS in=62745 tools=13 21.4s  spent $6.3273
+[both/bugs] T-5f9b54 PASS in=246187 tools=12 25.2s  spent $6.4038
+[both/threads] T-89dfd1 PASS in=142150 tools=11 17.8s  spent $6.4471
+[both/logs] T-71f19a PASS in=34177 tools=10 20.8s  spent $6.4581
+[both/configs] T-74abbb PASS in=19379 tools=8 13.1s  spent $6.4645
+[both/code] T-8603c5 PASS in=72993 tools=8 12.1s  spent $6.4872
+[both/code] T-63763b PASS (reused) in=0 tools=0 0.0s  spent $6.4872
+[both/code] T-6e2474 PASS (reused) in=0 tools=0 0.0s  spent $6.4872
+[both/revisions] T-3c0fab PASS in=142831 tools=14 25.0s  spent $6.5321
+[both/tickets] T-25beb8 PASS in=346733 tools=16 24.5s  spent $6.6386
+[both/bugs] T-a5fff8 FAIL in=76688 tools=17 26.3s  spent $6.6659
+[both/configs] T-5b605d PASS in=21535 tools=10 19.4s  spent $6.6735
+[both/threads] T-41f767 PASS in=50518 tools=14 25.9s  spent $6.6898
+[both/logs] T-8b1bbb PASS in=139720 tools=11 24.8s  spent $6.7326
+[both/revisions] T-a7ea12 PASS in=107879 tools=11 21.6s  spent $6.7662
+[both/code] T-56d811 PASS in=49017 tools=16 27.5s  spent $6.7818
+[both/tickets] T-dec940 PASS in=222934 tools=14 26.5s  spent $6.8524
+[both/logs] T-931c39 PASS in=97753 tools=10 14.9s  spent $6.8826
+[both/bugs] T-453fd0 PASS in=323754 tools=11 21.2s  spent $6.9833
+[both/threads] T-d7efa3 PASS in=42602 tools=13 21.0s  spent $6.9970
+[both/revisions] T-189ba2 PASS in=88719 tools=12 25.9s  spent $7.0258
+[both/revisions] T-114ecb PASS (reused) in=0 tools=0 0.0s  spent $7.0258
+[both/logs] T-922efa PASS in=74610 tools=9 15.9s  spent $7.0488
+[both/threads] T-e04e98 PASS in=75735 tools=8 15.2s  spent $7.0728
+[both/tickets] T-dd6c39 PASS in=304235 tools=14 28.5s  spent $7.1671
+[both/revisions] T-bda07e PASS in=67735 tools=17 46.9s  spent $7.1891
+total spent: $7.1891
