@@ -12,6 +12,7 @@ import unittest
 
 import numpy as np
 
+import content
 import minhash
 import policy
 
@@ -20,7 +21,8 @@ A2_DIR = os.environ.get("A2_DIR", os.path.join(HERE, "Assignment2_COMP_580"))
 DATASETS = os.path.join(A2_DIR, "assignment2", "datasets")
 ALL_DATASETS = ["tickets", "bugs", "docs", "citations",
                 "hosts", "configs", "code", "threads", "revisions", "logs"]
-sys.path.insert(0, A2_DIR)
+SPARTACUS_DIR = os.environ.get("SPARTACUS_DIR", os.path.join(HERE, "Spartacus"))
+sys.path[:0] = [A2_DIR, SPARTACUS_DIR]
 
 
 def env(dataset):
@@ -204,6 +206,76 @@ class TestTaskPolicy(unittest.TestCase):
         ungated = policy.TaskPolicy(env("tickets"), gated=False)
         other = "android" if record["platform"].lower() != "android" else "windows"
         self.assertIsNotNone(ungated.lookup(as_task(record, platform=other)))
+
+
+def numbered(text):
+    """Text formatted the way Spartacus's read_file returns it."""
+    return "\n".join("%d\t%s" % (n, line) for n, line in enumerate(text.splitlines(), 1))
+
+
+class TestContent(unittest.TestCase):
+    def setUp(self):
+        folder = os.path.join(DATASETS, "hosts", "env", "scenarios", "FLT-1000", "inventory")
+        names = sorted(os.listdir(folder))[:2]
+        self.a, self.b = (open(os.path.join(folder, n)).read() for n in names)
+        self.cache = content.ContentCache()
+
+    def read(self, path, text):
+        return self.cache.process("read_file", {"path": path}, numbered(text))
+
+    def test_short_output_passthrough(self):
+        self.assertEqual(self.cache.process("bash", {"command": "ls"}, "x" * 100), "x" * 100)
+
+    def test_exact_repeat(self):
+        self.read("a.txt", self.a)
+        self.assertEqual(self.read("a.txt", self.a), "[reuse] identical to a.txt")
+
+    def test_near_duplicate_folded_keeps_numbers(self):
+        self.read("a.txt", self.a)
+        folded = self.read("b.txt", self.b)
+        self.assertTrue(folded.startswith("[reuse] same as a.txt except"), folded[:80])
+        self.assertLessEqual(len(folded), 0.5 * len(numbered(self.b)))
+        a_lines = set(self.a.splitlines())
+        for line in self.b.splitlines():
+            if line not in a_lines:
+                self.assertIn(line, folded)
+        self.assertEqual(self.cache.hits, 1)
+
+    def test_unrelated_not_folded(self):
+        self.read("a.txt", self.a)
+        unrelated = "\n".join("line %s about something else entirely" % w for w in "abcdefghijklmnopqrstuvwxyz")
+        self.assertEqual(self.read("u.txt", unrelated), numbered(unrelated))
+
+    def test_insufficient_savings_returns_original(self):
+        self.read("a.txt", self.a)
+        lines = self.a.splitlines()
+        changed = "\n".join(line + " changed" if i % 3 == 0 else line for i, line in enumerate(lines))
+        self.assertEqual(self.read("c.txt", changed), numbered(changed))
+
+    def test_quoted_reply_folded_to_reference(self):
+        inbox = os.path.join(DATASETS, "threads", "env", "scenarios", "MBX-1000", "inbox")
+        names = sorted(os.listdir(inbox))
+        texts = {n: open(os.path.join(inbox, n)).read() for n in names}
+        reply = next(n for n in names if "\n> " in texts[n] and len(texts[n]) > 600)
+        for name in names[:names.index(reply)]:
+            self.read(name, texts[name])
+        result = self.read(reply, texts[reply])
+        self.assertIn("[reuse] quoted text of", result)
+        self.assertLess(len(result), len(numbered(texts[reply])))
+        own_lines = [l for l in texts[reply].splitlines() if l.strip() and not l.startswith(">")]
+        for line in own_lines:
+            self.assertIn(line, result)
+
+    def test_wrap_tools_round_trip(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            for name, text in (("a.txt", self.a), ("b.txt", self.b)):
+                with open(os.path.join(tmp, name), "w") as handle:
+                    handle.write(text)
+            wrapped = {tool.name: tool for tool in content.wrap_tools(tmp, self.cache)}
+            self.assertEqual(set(wrapped), {"read_file", "bash", "grep"})
+            self.assertEqual(wrapped["read_file"].run(path="a.txt"), numbered(self.a))
+            self.assertTrue(wrapped["read_file"].run(path="b.txt").startswith("[reuse] same as a.txt"))
 
 
 if __name__ == "__main__":
