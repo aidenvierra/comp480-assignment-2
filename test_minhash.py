@@ -207,6 +207,17 @@ class TestTaskPolicy(unittest.TestCase):
                 shutil.copy(os.path.join(env("tickets"), name), mystery)
             self.assertIsNone(policy.TaskPolicy(mystery).lookup(as_task(history("tickets")[0])))
 
+    def test_explicit_dataset_name(self):
+        import shutil
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            heldout = os.path.join(tmp, "heldout_set", "env")
+            os.makedirs(heldout)
+            for name in ("history.jsonl", "INSTRUCTIONS.md"):
+                shutil.copy(os.path.join(env("tickets"), name), heldout)
+            record = history("tickets")[3]
+            self.assertIsNotNone(policy.TaskPolicy(heldout, dataset="tickets").lookup(as_task(record)))
+
     def test_threshold_bounds(self):
         for dataset in ALL_DATASETS:
             threshold = policy.TaskPolicy(env(dataset)).threshold
@@ -290,6 +301,15 @@ class TestContent(unittest.TestCase):
         own_lines = [l for l in texts[reply].splitlines() if l.strip() and not l.startswith(">")]
         for line in own_lines:
             self.assertIn(line, result)
+
+    def test_bash_leading_numbers_are_kept(self):
+        # Only read_file output carries Spartacus's "N<TAB>" line numbers; elsewhere a leading
+        # number is data, and a change in it must show.
+        rows = ["%d\tservice-%02d\tactive\tregion eu-west zone b" % (100 + i, i) for i in range(40)]
+        self.cache.process("bash", {"command": "awk A"}, "\n".join(rows))
+        rows[7] = rows[7].replace("107", "607", 1)
+        result = self.cache.process("bash", {"command": "awk B"}, "\n".join(rows))
+        self.assertIn("607", result)
 
     def test_wrap_tools_round_trip(self):
         import tempfile
@@ -398,6 +418,38 @@ class TestRunner(unittest.TestCase):
         self.assertTrue(row["reused"])
         self.assertEqual(row["model_requests"], 0)
         self.assertTrue(row["passed"])
+
+    def test_sample_larger_than_population(self):
+        self.assertEqual(len(self.run.load_tasks("tickets", 1000, seed=480)), 70)
+
+    def test_missing_scenario_is_failed_row(self):
+        task = dict(self.run.load_tasks("hosts", 1)[0], scenario="NOPE-0")
+        row = self.run.run_task("hosts", task, "baseline", None, self.tmp.name, self.PRICES)
+        self.assertIs(row["passed"], False)
+        self.assertIn("NOPE-0", row["error"])
+
+    def test_resume_indexes_only_earlier_tasks(self):
+        # A logged answer from later in the stream must not be visible to an earlier task.
+        out = os.path.join(self.tmp.name, "results")
+        later = self.run.load_tasks("tickets", 3)[2]
+        os.makedirs(os.path.join(out, "task"))
+        with open(os.path.join(out, "task", "tickets.jsonl"), "w") as handle:
+            handle.write(json.dumps({"tid": later["tid"], "passed": True, "reused": False,
+                                     "answer": {"resolution_id": "R-01"}}) + "\n")
+        store_sizes = {}
+
+        def spy(dataset, task, config_name, task_policy, *args, **kwargs):
+            store_sizes[task["tid"]] = task_policy.store_size
+            return {"tid": task["tid"], "passed": False, "reused": False, "est_cost": 0.0,
+                    "input_tokens": 0, "tool_calls": 0, "wall_s": 0.0, "answer": None}
+
+        self.addCleanup(setattr, self.run, "run_task", self.run.run_task)
+        self.run.run_task = spy
+        self.run.main(["--config", "task", "--datasets", "tickets", "--n", "3", "--seed", "-1",
+                       "--fake", "--out", out])
+        first, second = (t["tid"] for t in self.run.load_tasks("tickets", 2))
+        self.assertEqual(store_sizes[first], len(history("tickets")))
+        self.assertEqual(store_sizes[second], len(history("tickets")))
 
     def test_ledger_and_resume(self):
         out = os.path.join(self.tmp.name, "results")

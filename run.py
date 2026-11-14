@@ -53,7 +53,7 @@ def load_tasks(dataset, n, seed=None):
     folder = os.path.join(env_dir(dataset), "incoming")
     tasks = sorted((read_json(os.path.join(folder, name)) for name in os.listdir(folder)),
                    key=lambda t: t["seq"])
-    if n is None or seed is None:
+    if n is None or seed is None or n >= len(tasks):
         return tasks[:n]
     return sorted(random.Random(seed).sample(tasks, n), key=lambda t: t["seq"])
 
@@ -68,7 +68,10 @@ def build_workdir(dataset, task, dest):
             shutil.copy(os.path.join(source, name), dest)
     if task.get("scenario"):
         scenarios = os.path.join(source, "scenarios")
-        match = next(d for d in os.listdir(scenarios) if policy.norm_code(d) == policy.norm_code(task["scenario"]))
+        match = next((d for d in os.listdir(scenarios)
+                      if policy.norm_code(d) == policy.norm_code(task["scenario"])), None)
+        if match is None:
+            raise FileNotFoundError("no scenario folder for %s" % task["scenario"])
         shutil.copytree(os.path.join(scenarios, match), dest, dirs_exist_ok=True)
     with open(os.path.join(dest, "task.json"), "w") as handle:
         json.dump(task, handle, indent=2)
@@ -171,18 +174,19 @@ class Ledger:
 # ---------------------------------------------------------------------------
 # one task
 # ---------------------------------------------------------------------------
-def run_task(dataset, task, config, task_policy, workroot, prices, model=MODEL, trace=False):
+def run_task(dataset, task, config_name, task_policy, workroot, prices, model=MODEL, trace=False):
     """Solve one task (by reuse or by the agent), verify it, and return its log row."""
-    use_task, use_content = CONFIGS[config]
+    use_task, use_content = CONFIGS[config_name]
     start = time.perf_counter()
-    row = {"tid": task["tid"], "seq": task["seq"], "config": config, "dataset": dataset,
+    row = {"tid": task["tid"], "seq": task["seq"], "config": config_name, "dataset": dataset,
            "reused": False, "reused_from": None, "similarity": None, "policy_reason": None,
            "tool_calls": 0, "model_requests": 0, "input_tokens": 0, "output_tokens": 0,
            "policy_s": 0.0, "content_s": 0.0, "content_hits": 0, "chars_in": 0, "chars_out": 0,
            "answer": None, "error": None}
-    work = build_workdir(dataset, task, tempfile.mkdtemp(dir=workroot))
+    work = tempfile.mkdtemp(dir=workroot)
     steps = []
     try:
+        build_workdir(dataset, task, work)
         hit = None
         if use_task:
             tick = time.perf_counter()
@@ -260,16 +264,15 @@ def run_dataset(dataset, opts, ledger):
     os.makedirs(os.path.dirname(log), exist_ok=True)
     done = read_jsonl(log)
     tasks = load_tasks(dataset, opts.n, opts.seed)
-    task_policy = policy.TaskPolicy(env_dir(dataset), threshold=opts.threshold) if use_task else None
-    if task_policy:  # a resumed run rebuilds the store from answers it already verified
-        by_tid = {t["tid"]: t for t in tasks}
-        for row in done:
-            if row["passed"] and not row["reused"] and row["tid"] in by_tid:
-                task_policy.index(by_tid[row["tid"]], row["answer"])
-    logged = {row["tid"] for row in done}
+    task_policy = (policy.TaskPolicy(env_dir(dataset), threshold=opts.threshold, dataset=dataset)
+                   if use_task else None)
+    logged = {row["tid"]: row for row in done}
     workroot = tempfile.mkdtemp(prefix="minhash-agent-")
-    for task in tasks:
-        if task["tid"] in logged:
+    for task in tasks:  # in stream order, so the store only ever holds earlier tasks
+        if task["tid"] in logged:  # resumed: replay what this task added to the store
+            row = logged[task["tid"]]
+            if task_policy and row["passed"] and not row["reused"]:
+                task_policy.index(task, row["answer"])
             continue
         if ledger.over(opts.cap):
             print("[%s] spend cap $%.2f reached; stopping" % (dataset, opts.cap))

@@ -70,7 +70,9 @@ class ContentCache:
         if digest in self.exact:
             return "[reuse] identical to %s" % self.exact[digest]
 
-        lines = [_NUMBERED.sub("", line) for line in output.splitlines()]
+        lines = output.splitlines()
+        if tool == "read_file":  # only read_file numbers its lines; elsewhere a number is data
+            lines = [_NUMBERED.sub("", line) for line in lines]
         sig = minhash.signature("\n".join(lines), mask_numbers=True)
         scored = [(minhash.estimate(sig, self.seen[k].signature), k) for k in self.lsh.query(sig)]
         similarity, key = max(scored, default=(0.0, None))

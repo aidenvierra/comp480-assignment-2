@@ -173,9 +173,11 @@ class TaskPolicy:
     for the report's threshold sweep, never for real runs.
     """
 
-    def __init__(self, env_dir, threshold=None, gated=True):
-        self.dataset = dataset_name(env_dir)
+    def __init__(self, env_dir, threshold=None, gated=True, dataset=None):
+        self.dataset = dataset or dataset_name(env_dir)
         self.rule = RULES.get(self.dataset)  # unknown dataset: never reuse
+        if not self.rule:
+            print("policy: no validation rule for dataset %r; task reuse is off" % self.dataset)
         self.gated = gated
         self.terms = critical_terms(_read(os.path.join(env_dir, "INSTRUCTIONS.md")))
         self.lsh = minhash.LSHIndex()

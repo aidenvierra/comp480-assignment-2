@@ -115,7 +115,8 @@ def _efficiency_vs_accuracy(cell, path):
                    edgecolor="white", linewidth=2, zorder=3, label=config)
         ax.annotate(config, (r["input_tokens"], r["accuracy"]), xytext=(8, 10 - 9 * i),
                     textcoords="offset points", color=INK)
-    ax.set_ylim(80, 101)   # a full-scale-ish axis: one task is 1.6 points, not the whole plot
+    lowest = min(cell[(c, "ALL")]["accuracy"] for c in CONFIGS)
+    ax.set_ylim(min(80, lowest - 5), 101)  # wide enough that one task is not the whole plot
     ax.set_xlim(0, ax.get_xlim()[1] * 1.12)
     ax.set_xlabel("Mean input tokens per task")
     ax.set_ylabel("Verified accuracy (%)")
