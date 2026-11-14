@@ -88,8 +88,47 @@ def load_verifier(dataset):
 # the model
 # ---------------------------------------------------------------------------
 def use_openrouter():
-    """Point Spartacus's OpenAI-compatible backend at OpenRouter (key: OPENAI_API_KEY)."""
+    """Point Spartacus's OpenAI-compatible backend at OpenRouter (key: OPENAI_API_KEY).
+
+    Two adjustments at the wire, leaving Spartacus's files untouched:
+      * OpenRouter turns a tool message into a Gemini function response, and when the
+        text contains a JSON object it passes Gemini only that object (a read of
+        INSTRUCTIONS.md arrives as its example answer and nothing else). So each tool
+        result is sent as {"result": text}, the shape Spartacus's Gemini backend uses.
+      * Gemini sometimes emits a malformed tool call (finish_reason "error", no tokens
+        billed), repeatably for a given context. Spartacus would read the empty reply as
+        "done", so that request is retried with tool_choice "required", which Gemini
+        answers with a well-formed call. Only the retry forces a tool, so the agent can
+        still finish on a later turn.
+    """
     models.PROVIDERS["openai"]["base"] = OPENROUTER
+    if not getattr(provider._openai_wire, "for_openrouter", False):
+        provider._openai_wire = _json_tool_results(provider._openai_wire)
+    if not getattr(provider._post, "for_openrouter", False):
+        provider._post = _retry_model_errors(provider._post)
+
+
+def _json_tool_results(plain_wire):
+    def wire(system, messages):
+        entries = plain_wire(system, messages)
+        for entry in entries:
+            if entry["role"] == "tool":
+                entry["content"] = json.dumps({"result": entry["content"]})
+        return entries
+    wire.for_openrouter = True
+    return wire
+
+
+def _retry_model_errors(plain_post, attempts=3):
+    def post(url, body, headers, retries=5):
+        data = plain_post(url, body, headers, retries)
+        for _ in range(attempts):
+            if (data.get("choices") or [{}])[0].get("finish_reason") != "error" or not body.get("tools"):
+                break
+            data = plain_post(url, dict(body, tool_choice="required"), headers, retries)
+        return data
+    post.for_openrouter = True
+    return post
 
 
 def fake_model(model, system, messages, tools=None):

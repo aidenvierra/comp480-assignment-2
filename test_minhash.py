@@ -306,6 +306,35 @@ class TestRunner(unittest.TestCase):
         self.addCleanup(setattr, run.provider, "complete", run.provider.complete)
         run.provider.complete = run.fake_model
 
+    def test_openrouter_wraps_tool_output_as_json(self):
+        # OpenRouter hands Gemini only the JSON object it finds inside raw tool text.
+        self.addCleanup(setattr, self.run.provider, "_openai_wire", self.run.provider._openai_wire)
+        self.addCleanup(self.run.models.PROVIDERS["openai"].update, dict(self.run.models.PROVIDERS["openai"]))
+        self.run.use_openrouter()
+        self.run.use_openrouter()  # idempotent: never double-wrapped
+        text = 'Write answer.json:\n{"resolution_id": "R-07"}'
+        wire = self.run.provider._openai_wire("sys", [
+            {"role": "user", "text": "go"},
+            {"role": "assistant", "text": "", "tool_calls": [{"name": "read_file", "args": {}}]},
+            {"role": "tool", "name": "read_file", "text": text}])
+        self.assertEqual(json.loads(wire[-1]["content"]), {"result": text})
+        self.assertEqual(self.run.models.PROVIDERS["openai"]["base"], self.run.OPENROUTER)
+
+    def test_openrouter_retries_malformed_function_call(self):
+        self.addCleanup(setattr, self.run.provider, "_post", self.run.provider._post)
+        self.addCleanup(setattr, self.run.provider, "_openai_wire", self.run.provider._openai_wire)
+        self.addCleanup(self.run.models.PROVIDERS["openai"].update, dict(self.run.models.PROVIDERS["openai"]))
+        replies = [{"choices": [{"finish_reason": "error", "native_finish_reason": "MALFORMED_FUNCTION_CALL",
+                                 "message": {"content": None}}]},
+                   {"choices": [{"finish_reason": "stop", "message": {"content": "ok"}}]}]
+        bodies = []
+        self.run.provider._post = lambda url, body, headers, retries=5: bodies.append(body) or replies.pop(0)
+        self.run.use_openrouter()
+        reply = self.run.provider._post("u", {"tools": [{}]}, {})
+        self.assertEqual(reply["choices"][0]["message"]["content"], "ok")
+        self.assertNotIn("tool_choice", bodies[0])
+        self.assertEqual(bodies[1]["tool_choice"], "required")
+
     def test_load_tasks_sorted_prefix(self):
         tasks = self.run.load_tasks("tickets", 5)
         every = sorted(t["seq"] for t in self.run.load_tasks("tickets", None))
