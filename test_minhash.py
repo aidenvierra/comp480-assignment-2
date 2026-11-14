@@ -278,5 +278,76 @@ class TestContent(unittest.TestCase):
             self.assertTrue(wrapped["read_file"].run(path="b.txt").startswith("[reuse] same as a.txt"))
 
 
+def text_only_model(model, system, messages, tools=None):
+    """A model that answers in prose and never writes answer.json."""
+    return {"text": "I think it is R-01.", "tool_calls": [], "usage": {"input": 500, "output": 10}}
+
+
+class TestRunner(unittest.TestCase):
+    PRICES = (0.10, 0.40)
+
+    def setUp(self):
+        import tempfile
+        import run
+        self.run = run
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.addCleanup(setattr, run.provider, "complete", run.provider.complete)
+        run.provider.complete = run.fake_model
+
+    def test_load_tasks_sorted_prefix(self):
+        tasks = self.run.load_tasks("tickets", 5)
+        every = sorted(t["seq"] for t in self.run.load_tasks("tickets", None))
+        self.assertEqual([t["seq"] for t in tasks], every[:5])
+
+    def test_build_workdir_corpus_unnormalised_id(self):
+        task = dict(self.run.load_tasks("hosts", 1)[0], scenario="flt1000")
+        work = self.run.build_workdir("hosts", task, os.path.join(self.tmp.name, "w"))
+        files = set(os.listdir(work))
+        self.assertTrue({"task.json", "INSTRUCTIONS.md", "history.jsonl", "inventory"} <= files)
+        self.assertFalse(files & {"incoming", "scenarios", "hidden"})
+        self.assertTrue(os.listdir(os.path.join(work, "inventory")))
+
+    def test_build_workdir_citations_has_db(self):
+        task = self.run.load_tasks("citations", 1)[0]
+        work = self.run.build_workdir("citations", task, os.path.join(self.tmp.name, "w"))
+        self.assertIn("db.json", os.listdir(work))
+
+    def test_fake_run_counts(self):
+        task = self.run.load_tasks("tickets", 1)[0]
+        row = self.run.run_task("tickets", task, "baseline", None, self.tmp.name, self.PRICES)
+        self.assertEqual((row["model_requests"], row["tool_calls"], row["input_tokens"]), (2, 1, 2000))
+        self.assertIs(row["passed"], False)
+        self.assertIsNone(row["error"])
+        self.assertEqual(row["answer"], {"fake": True})
+
+    def test_missing_answer_is_failed_row(self):
+        self.run.provider.complete = text_only_model
+        task = self.run.load_tasks("tickets", 1)[0]
+        row = self.run.run_task("tickets", task, "baseline", None, self.tmp.name, self.PRICES)
+        self.assertIs(row["passed"], False)
+        self.assertIsNone(row["answer"])
+
+    def test_task_reuse_skips_agent(self):
+        task_policy = policy.TaskPolicy(env("tickets"))
+        task = next(t for t in self.run.load_tasks("tickets", None) if task_policy.lookup(t))
+        row = self.run.run_task("tickets", task, "task", task_policy, self.tmp.name, self.PRICES)
+        self.assertTrue(row["reused"])
+        self.assertEqual(row["model_requests"], 0)
+        self.assertTrue(row["passed"])
+
+    def test_ledger_and_resume(self):
+        out = os.path.join(self.tmp.name, "results")
+        base = ["--config", "baseline", "--datasets", "tickets", "--n", "3", "--fake", "--out", out]
+        self.run.main(base + ["--cap", "0.000001"])
+        log = os.path.join(out, "baseline", "tickets.jsonl")
+        self.assertEqual(len(self.run.read_jsonl(log)), 1)
+        self.run.main(base + ["--cap", "100"])
+        tids = [row["tid"] for row in self.run.read_jsonl(log)]
+        self.assertEqual(len(tids), 3)
+        self.assertEqual(len(set(tids)), 3)
+        self.assertGreater(self.run.Ledger(os.path.join(out, "spend.json")).spent, 0)
+
+
 if __name__ == "__main__":
     unittest.main()
