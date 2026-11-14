@@ -32,7 +32,7 @@ import policy  # noqa: E402
 
 MODEL = "openai:google/gemini-3.5-flash-lite"   # OpenRouter id, routed through the OpenAI backend
 OPENROUTER = "https://openrouter.ai/api/v1"
-PRICES = (0.10, 0.40)                           # $ per million input / output tokens
+PRICES = (0.30, 2.50)                           # $ per million input / output tokens (OpenRouter, 2026-11-14)
 PROMPT = "Solve the task in task.json by following INSTRUCTIONS.md. Write your answer to answer.json."
 MAX_TURNS = 30
 DEFAULT_DATASETS = ["tickets", "bugs", "hosts", "configs", "code", "threads", "revisions", "logs"]
