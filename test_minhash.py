@@ -129,5 +129,82 @@ class TestPolicyRules(unittest.TestCase):
         self.assertEqual(policy.dataset_name("/x/datasets/hosts/env/"), "hosts")
 
 
+def as_task(record, tid="T-test", **changes):
+    """A history record re-shaped as an incoming task, optionally with fields changed."""
+    task = {k: v for k, v in record.items() if k != "hid"}
+    task.update(tid=tid, **changes)
+    return task
+
+
+class TestTaskPolicy(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.tickets = policy.TaskPolicy(env("tickets"))
+
+    def test_exact_copy_reused(self):
+        record = history("tickets")[3]
+        answer, info = self.tickets.lookup(as_task(record))
+        self.assertEqual(answer, {"resolution_id": record["resolution_id"]})
+        self.assertEqual(info["source"], record["hid"])
+        self.assertEqual(info["similarity"], 1.0)
+
+    def test_platform_flip_rejected(self):
+        record = history("tickets")[3]
+        other = "android" if record["platform"].lower() != "android" else "windows"
+        self.assertIsNone(self.tickets.lookup(as_task(record, platform=other)))
+        self.assertEqual(self.tickets.last_info["reason"], "key_mismatch")
+
+    def test_cue_flip_rejected(self):
+        record = next(r for r in history("tickets") if "office network" in r["body"])
+        task = as_task(record, body=record["body"].replace("office network", "clock"))
+        self.assertIsNone(self.tickets.lookup(task))
+        self.assertIn(self.tickets.last_info["reason"], ("critical_word", "below_threshold"))
+
+    def test_corpus_scenario_mismatch_rejected(self):
+        records = history("hosts")
+        record = records[0]
+        other = next(r["scenario"] for r in records if policy.norm_code(r["scenario"]) != policy.norm_code(record["scenario"]))
+        hosts = policy.TaskPolicy(env("hosts"))
+        self.assertIsNotNone(hosts.lookup(as_task(record)))
+        self.assertIsNone(hosts.lookup(as_task(record, scenario=other)))
+
+    def test_docs_status_flip_rejected(self):
+        record = next(r for r in history("docs") if r["category"] == "change-approved" and "approved" in r["body"])
+        flipped = as_task(record, body=record["body"].replace("approved", "rejected"))
+        docs = policy.TaskPolicy(env("docs"))
+        self.assertIsNotNone(docs.lookup(as_task(record)))
+        self.assertIsNone(docs.lookup(flipped))
+
+    def test_index_then_reuse(self):
+        tickets = policy.TaskPolicy(env("tickets"))
+        task = as_task(history("tickets")[0], tid="T-new", product="BrandNewProduct")
+        self.assertIsNone(tickets.lookup(task))
+        tickets.index(task, {"resolution_id": "R-01"})
+        answer, info = tickets.lookup(dict(task, tid="T-newer"))
+        self.assertEqual(answer, {"resolution_id": "R-01"})
+        self.assertEqual(info["source"], "T-new")
+
+    def test_unknown_dataset_never_reuses(self):
+        import shutil
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            mystery = os.path.join(tmp, "mystery", "env")
+            os.makedirs(mystery)
+            for name in ("history.jsonl", "INSTRUCTIONS.md"):
+                shutil.copy(os.path.join(env("tickets"), name), mystery)
+            self.assertIsNone(policy.TaskPolicy(mystery).lookup(as_task(history("tickets")[0])))
+
+    def test_threshold_bounds(self):
+        for dataset in ALL_DATASETS:
+            threshold = policy.TaskPolicy(env(dataset)).threshold
+            self.assertTrue(0.5 <= threshold <= 0.9, (dataset, threshold))
+
+    def test_ungated_mode_ignores_key(self):
+        record = history("tickets")[3]
+        ungated = policy.TaskPolicy(env("tickets"), gated=False)
+        other = "android" if record["platform"].lower() != "android" else "windows"
+        self.assertIsNotNone(ungated.lookup(as_task(record, platform=other)))
+
+
 if __name__ == "__main__":
     unittest.main()
