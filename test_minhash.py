@@ -318,6 +318,8 @@ class TestRunner(unittest.TestCase):
             {"role": "assistant", "text": "", "tool_calls": [{"name": "read_file", "args": {}}]},
             {"role": "tool", "name": "read_file", "text": text}])
         self.assertEqual(json.loads(wire[-1]["content"]), {"result": text})
+        from spartacus import config  # loaded once, up front: lazy loading races across threads
+        self.assertTrue(config._loaded)
         self.assertEqual(self.run.models.PROVIDERS["openai"]["base"], self.run.OPENROUTER)
 
     def test_openrouter_retries_malformed_function_call(self):

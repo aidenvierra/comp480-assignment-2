@@ -26,7 +26,7 @@ A2_DIR = os.environ.get("A2_DIR", os.path.join(HERE, "Assignment2_COMP_580"))
 DATASETS = os.path.join(A2_DIR, "assignment2", "datasets")
 sys.path.insert(0, SPARTACUS_DIR)
 
-from spartacus import Harness, models, provider  # noqa: E402
+from spartacus import Harness, config, models, provider  # noqa: E402
 
 import content  # noqa: E402
 import policy  # noqa: E402
@@ -105,7 +105,10 @@ def use_openrouter():
         "done", so that request is retried with tool_choice "required", which Gemini
         answers with a well-formed call. Only the retry forces a tool, so the agent can
         still finish on a later turn.
+    The key file is read here, once: Spartacus loads it lazily, and parallel workers
+    racing on that first load can find no key.
     """
+    config.load()
     models.PROVIDERS["openai"]["base"] = OPENROUTER
     if not getattr(provider._openai_wire, "for_openrouter", False):
         provider._openai_wire = _json_tool_results(provider._openai_wire)
