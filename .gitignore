@@ -1,0 +1,8 @@
+Spartacus/
+Assignment2_COMP_580/
+.venv/
+__pycache__/
+.DS_Store
+.superpowers/
+results/work/
+*.pdf
