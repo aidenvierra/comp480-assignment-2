@@ -39,7 +39,7 @@ mkdir -p ~/.config/spartacus && echo 'OPENAI_API_KEY=sk-or-...' >> ~/.config/spa
 .venv/bin/python -m unittest test_minhash                     # offline tests, no API calls
 .venv/bin/python plots.py sweep --out results/sweep.csv       # threshold sweep, no API calls
 for c in baseline task content both; do
-  .venv/bin/python run.py --config $c --out results/full --jobs 8 --trace
+  .venv/bin/python run.py --config $c --out results/full --jobs 8 --trace --cap 9
 done
 .venv/bin/python plots.py report --results results/full --out results/figures --sweep results/sweep.csv
 ```
@@ -47,7 +47,7 @@ done
 Defaults: datasets `tickets, bugs, hosts, configs, code, threads, revisions, logs`; a random
 sample of 8 incoming tasks per dataset (`--n 8 --seed 480`), solved in stream (`seq`) order;
 task-reuse threshold calibrated per dataset from `history.jsonl` (0.5 on all eight); prices
-$0.30 / $2.50 per million input / output tokens; one shared spend cap (`--cap`; $8 was used) kept in
+$0.30 / $2.50 per million input / output tokens; one shared spend cap (`--cap`, $9 for the reported runs) kept in
 `results/full/spend.json`. A rerun skips tasks already logged. `--fake` runs everything with a
 stub model for free.
 
@@ -71,3 +71,13 @@ adjusts two things at the wire, without editing Spartacus's files:
 Nothing reads `hidden/`. `policy.py` and `content.py` see only the task, `history.jsonl`,
 `INSTRUCTIONS.md` and tool outputs. `run.py` and `plots.py` call each dataset's `verify.py` to
 grade answers, and only verified agent answers are indexed for later reuse.
+
+## Notes on the reported runs
+
+- Model outputs vary between runs; each configuration was run once (64 tasks), so small
+  accuracy differences between configurations are within run-to-run noise.
+- The content layer's loop fix (`content.py`: repeated requests get full output; references
+  only point at text shown in full) landed after the first content/both runs. Every recorded
+  trajectory was replayed offline through the old and new layer; the 30 rows whose tool
+  outputs would differ were rerun, the other rows saw identical inputs and were kept.
+- Total spend for all reported runs, including the smoke run: about $8.25.
