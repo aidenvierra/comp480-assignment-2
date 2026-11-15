@@ -5,4 +5,8 @@ __pycache__/
 .DS_Store
 .superpowers/
 results/work/
-*.pdf
+Assignment_2_480_580_Fall2026.pdf
+report/*.aux
+report/*.log
+report/*.out
+results/smoke/
