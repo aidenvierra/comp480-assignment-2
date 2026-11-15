@@ -6,7 +6,7 @@
 \usepackage{xcolor}
 \usepackage{listings}
 \usepackage{float}
-\usepackage[hidelinks]{hyperref}
+\usepackage[colorlinks=true,urlcolor=blue,linkcolor=black,citecolor=black]{hyperref}
 \usepackage{caption}
 \captionsetup{font=small,labelfont=bf}
 \lstset{basicstyle=\ttfamily\small, breaklines=true, columns=fullflexible, frame=single,
@@ -18,7 +18,7 @@
 
 \title{MinHash for Efficient Agent Trajectories\\[0.3em]
 \large COMP 480/580 --- Assignment 2}
-\author{}
+\author{Aiden Vierra}
 \date{December 2026}
 \usepackage{titling}
 \setlength{\droptitle}{-5em}
@@ -57,6 +57,8 @@ tokens. Content-level reuse was correct but saved little in live runs (about 1.4
 tokens), because the agent rarely re-reads near-duplicate files in full; offline, the same
 layer shrinks a full read of a scenario to 26--43\% of its size on four of the six corpus
 datasets.
+
+\textbf{Git Repo:} \href{https://github.com/aidenvierra/comp480-assignment-2}{comp480-assignment-2}
 
 \section{Implementation and Methodology}
 
@@ -460,7 +462,7 @@ show.
 
 \begin{lstlisting}
 git clone https://github.com/sahiljoshi515/Spartacus
-git clone <assignment repository> Assignment2_COMP_580
+git clone https://github.com/aidenvierra/comp480-assignment-2.git Assignment2_COMP_580
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 echo 'OPENAI_API_KEY=<openrouter key>' >> ~/.config/spartacus/env
 
