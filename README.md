@@ -16,9 +16,9 @@ datasets with each dataset's own `verify.py`. Neither the harness nor the datase
 ## Setup
 
 ```sh
-git clone <this repo> a2 && cd a2
+git clone https://github.com/aidenvierra/comp480-assignment-2 a2 && cd a2
 git clone https://github.com/sahiljoshi515/Spartacus
-git clone <assignment repo> Assignment2_COMP_580
+git clone https://github.com/sahiljoshi515/Assignment2_COMP_580
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 ```
 
